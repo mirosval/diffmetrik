@@ -55,24 +55,14 @@ struct if_data64 {
 fn main() {
     let oid: Vec<i32> = vec![libc::CTL_NET, libc::PF_ROUTE, 0, 0, libc::NET_RT_IFLIST2, 0];
     let ctl = sysctl::Ctl { oid };
-
-    dbg!(ctl.value_string().expect("aaa"));
-    dbg!(ctl.info().expect("aaa"));
-    let vval = ctl.value().expect("aaa");
-    dbg!(&vval);
+    let vval = ctl.value().expect("unable to parse sysctl value");
     let sval = std::mem::size_of::<libc::if_msghdr>();
-    dbg!(&sval);
     if let sysctl::CtlValue::Node(nvec) = vval {
-        let (aaa, bbb) = nvec[..sval].split_at(sval);
-        dbg!(&aaa);
-        let x: libc::if_msghdr = unsafe { std::mem::transmute_copy(&aaa[0]) };
-        dbg!(&x.ifm_msglen);
-        dbg!(x.ifm_type == libc::RTM_IFINFO2.try_into().unwrap());
-
-        if x.ifm_type == libc::RTM_IFINFO2.try_into().unwrap() {
-            let (aaa, bbb) = nvec.split_at(std::mem::size_of::<if_msghdr2>());
-            dbg!(&aaa);
-            let x: if_msghdr2 = unsafe { std::mem::transmute_copy(&aaa[0]) };
+        let (first, _) = nvec.split_at(sval);
+        let msghdr: libc::if_msghdr = unsafe { std::mem::transmute_copy(&first[0]) };
+        if msghdr.ifm_type == libc::RTM_IFINFO2.try_into().unwrap() {
+            let (msghdr2, _) = nvec.split_at(std::mem::size_of::<if_msghdr2>());
+            let x: if_msghdr2 = unsafe { std::mem::transmute_copy(&msghdr2[0]) };
             dbg!(&x.ifm_data.ifi_type);
             dbg!(&x.ifm_data.ifi_obytes);
             dbg!(&x.ifm_data.ifi_ibytes);
