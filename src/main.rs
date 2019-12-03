@@ -1,5 +1,6 @@
 use libc;
 use std::convert::TryInto;
+use std::iter::FromIterator;
 use sysctl::Sysctl;
 
 #[repr(C)]
@@ -52,22 +53,53 @@ struct if_data64 {
     ifi_lastchange: libc::timeval, /* time of last administrative change */
 }
 
+fn parse_msghdr(data: &Vec<u8>, offset: usize) -> (Option<if_msghdr2>, Option<usize>) {
+    let if_msghdr_size = std::mem::size_of::<libc::if_msghdr>();
+    let if_msghdr2_size = std::mem::size_of::<if_msghdr2>();
+    let sval = offset + if_msghdr_size;
+    if sval > data.len() {
+        return (None, None);
+    }
+    //let (first, _) = data.split_at(sval);
+    let sub = Vec::from_iter(data[offset..sval].iter().cloned());
+    let msghdr: libc::if_msghdr = unsafe { std::mem::transmute_copy(&sub[0]) };
+    let len: usize = msghdr.ifm_msglen.try_into().unwrap();
+    if msghdr.ifm_type == libc::RTM_IFINFO2.try_into().unwrap() {
+        let msghdr2 = Vec::from_iter(data[offset..offset + if_msghdr2_size].iter().cloned());
+        let x: if_msghdr2 = unsafe { std::mem::transmute_copy(&msghdr2[0]) };
+        dbg!(&x.ifm_data.ifi_type);
+        dbg!(&x.ifm_data.ifi_obytes);
+        // dbg!(&x.ifm_data.ifi_ibytes);
+        // dbg!(&x.ifm_data.ifi_ipackets);
+        // dbg!(&x.ifm_data.ifi_opackets);
+        (Some(x), Some(offset + len))
+    } else {
+        (None, Some(offset + len))
+    }
+}
+
 fn main() {
     let oid: Vec<i32> = vec![libc::CTL_NET, libc::PF_ROUTE, 0, 0, libc::NET_RT_IFLIST2, 0];
     let ctl = sysctl::Ctl { oid };
     let vval = ctl.value().expect("unable to parse sysctl value");
-    let sval = std::mem::size_of::<libc::if_msghdr>();
     if let sysctl::CtlValue::Node(nvec) = vval {
-        let (first, _) = nvec.split_at(sval);
-        let msghdr: libc::if_msghdr = unsafe { std::mem::transmute_copy(&first[0]) };
-        if msghdr.ifm_type == libc::RTM_IFINFO2.try_into().unwrap() {
-            let (msghdr2, _) = nvec.split_at(std::mem::size_of::<if_msghdr2>());
-            let x: if_msghdr2 = unsafe { std::mem::transmute_copy(&msghdr2[0]) };
-            dbg!(&x.ifm_data.ifi_type);
-            dbg!(&x.ifm_data.ifi_obytes);
-            dbg!(&x.ifm_data.ifi_ibytes);
-            dbg!(&x.ifm_data.ifi_ipackets);
-            dbg!(&x.ifm_data.ifi_opackets);
+        let mut next = Some(0);
+        let mut total_ibytes: u64 = 0;
+        let mut total_obytes: u64 = 0;
+        loop {
+            let (h1, n) = parse_msghdr(&nvec, next.unwrap());
+            if let Some(h1) = h1 {
+                if h1.ifm_data.ifi_type == 6 {
+                    total_ibytes += h1.ifm_data.ifi_ibytes;
+                    total_obytes += h1.ifm_data.ifi_obytes;
+                }
+            }
+            next = n;
+            if n.is_none() {
+                break;
+            }
         }
+        dbg!(&total_ibytes);
+        dbg!(&total_obytes);
     }
 }
