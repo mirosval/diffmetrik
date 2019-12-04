@@ -1,7 +1,24 @@
 use libc;
 use std::convert::TryInto;
 use std::iter::FromIterator;
+use structopt::clap::arg_enum;
+use structopt::StructOpt;
 use sysctl::Sysctl;
+
+arg_enum! {
+    #[derive(Debug)]
+    enum Metric {
+        Download,
+        Upload,
+    }
+}
+
+#[derive(StructOpt, Debug)]
+#[structopt(name = "baisc")]
+struct Opt {
+    #[structopt(short, long, possible_values = &Metric::variants(), case_insensitive = true)]
+    metric: Metric,
+}
 
 #[repr(C)]
 struct if_msghdr2 {
@@ -79,6 +96,9 @@ fn parse_msghdr(data: &Vec<u8>, offset: usize) -> (Option<if_msghdr2>, Option<us
 }
 
 fn main() {
+    let opt = Opt::from_args();
+    dbg!(&opt);
+
     let oid: Vec<i32> = vec![libc::CTL_NET, libc::PF_ROUTE, 0, 0, libc::NET_RT_IFLIST2, 0];
     let ctl = sysctl::Ctl { oid };
     let vval = ctl.value().expect("unable to parse sysctl value");
