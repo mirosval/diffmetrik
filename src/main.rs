@@ -1,5 +1,9 @@
 use libc;
+use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
+use std::env;
+use std::io::prelude::*;
+use std::io::BufReader;
 use std::iter::FromIterator;
 use structopt::clap::arg_enum;
 use structopt::StructOpt;
@@ -38,7 +42,7 @@ struct if_msghdr2 {
 /*
  * Structure describing information about an interface
  * which may be of interest to management entities.
- */
+*/
 #[repr(C)]
 struct if_data64 {
     /* generic interface information */
@@ -81,7 +85,8 @@ fn parse_msghdr(data: &Vec<u8>, offset: usize) -> (Option<if_msghdr2>, Option<us
     let sub = Vec::from_iter(data[offset..sval].iter().cloned());
     let msghdr: libc::if_msghdr = unsafe { std::mem::transmute_copy(&sub[0]) };
     let len: usize = msghdr.ifm_msglen.try_into().unwrap();
-    if msghdr.ifm_type == libc::RTM_IFINFO2.try_into().unwrap() {
+    let utype: u8 = libc::RTM_IFINFO2.try_into().unwrap();
+    if msghdr.ifm_type == utype {
         let msghdr2 = Vec::from_iter(data[offset..offset + if_msghdr2_size].iter().cloned());
         let x: if_msghdr2 = unsafe { std::mem::transmute_copy(&msghdr2[0]) };
         dbg!(&x.ifm_data.ifi_type);
@@ -95,14 +100,35 @@ fn parse_msghdr(data: &Vec<u8>, offset: usize) -> (Option<if_msghdr2>, Option<us
     }
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+struct Metrics {
+    since_unix_epoch: std::time::Duration,
+    upload: u64,
+    download: u64,
+}
+
 fn main() {
     let opt = Opt::from_args();
     dbg!(&opt);
 
+    let mut path = env::temp_dir();
+    path.push("diffstat.json");
+    dbg!(&path);
+
+    let mut file = std::fs::File::open(&path);
+    let old_metrics: Option<Metrics> = match file {
+        Ok(file) => {
+            let reader = BufReader::new(file);
+            let old_metrics: Metrics = serde_json::from_reader(reader).unwrap();
+            Some(old_metrics)
+        }
+        Err(_) => None,
+    };
+
     let oid: Vec<i32> = vec![libc::CTL_NET, libc::PF_ROUTE, 0, 0, libc::NET_RT_IFLIST2, 0];
     let ctl = sysctl::Ctl { oid };
     let vval = ctl.value().expect("unable to parse sysctl value");
-    if let sysctl::CtlValue::Node(nvec) = vval {
+    let metrics: Option<Metrics> = if let sysctl::CtlValue::Node(nvec) = vval {
         let mut next = Some(0);
         let mut total_ibytes: u64 = 0;
         let mut total_obytes: u64 = 0;
@@ -121,5 +147,34 @@ fn main() {
         }
         dbg!(&total_ibytes);
         dbg!(&total_obytes);
+        let dur = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("aaa");
+        dbg!(&dur);
+        let metrics = Metrics {
+            since_unix_epoch: dur,
+            upload: total_obytes,
+            download: total_ibytes,
+        };
+
+        let serialized = serde_json::to_string(&metrics).unwrap();
+        let mut file = std::fs::File::create(path).unwrap();
+        file.write_all(serialized.as_bytes());
+        Some(metrics)
+    } else {
+        None
+    };
+
+    match (old_metrics, metrics) {
+        (Some(old), Some(new)) => {
+            let diff = new.since_unix_epoch - old.since_unix_epoch;
+            dbg!(&diff);
+            let diff_download = new.download - old.download;
+            let download_rate = (diff_download as f64 / (diff.as_millis() as f64 / 1000.0)) as u64;
+            println!("D: {}", download_rate);
+        }
+        (_, _) => {
+            println!("Not enough data");
+        }
     }
 }
