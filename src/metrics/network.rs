@@ -56,7 +56,7 @@ struct if_data64 {
     ifi_lastchange: libc::timeval, /* time of last administrative change */
 }
 
-fn parse_msghdr(data: &Vec<u8>, offset: usize) -> (Option<if_msghdr2>, Option<usize>) {
+fn parse_msghdr(data: &[u8], offset: usize) -> (Option<if_msghdr2>, Option<usize>) {
     let if_msghdr_size = std::mem::size_of::<libc::if_msghdr>();
     let if_msghdr2_size = std::mem::size_of::<if_msghdr2>();
     let sval = offset + if_msghdr_size;
@@ -134,8 +134,8 @@ pub fn get_network_metrics() -> Result<NetworkMetrics, Error> {
         dbg!(&total_ibytes);
         dbg!(&total_obytes);
         let metrics = NetworkMetrics {
-            total_ibytes: total_ibytes,
-            total_obytes: total_obytes,
+            total_ibytes,
+            total_obytes,
         };
         Ok(metrics)
     } else {
