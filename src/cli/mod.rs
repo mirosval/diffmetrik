@@ -16,3 +16,8 @@ pub struct Opt {
     pub metric: Metric,
 }
 
+pub fn opt_from_args() -> Opt {
+    let opt = Opt::from_args();
+    dbg!(&opt);
+    opt
+}

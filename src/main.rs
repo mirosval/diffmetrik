@@ -1,14 +1,11 @@
 use crate::metrics::get_metrics;
-use structopt::StructOpt;
 
 mod cli;
 mod metrics;
 mod storage;
 
 fn main() {
-    let opt = cli::Opt::from_args();
-    dbg!(&opt);
-
+    let opt = cli::opt_from_args();
     let s = storage::Storage::new();
     let old_metrics = s.read().ok();
     let metrics = Some(get_metrics().unwrap());
