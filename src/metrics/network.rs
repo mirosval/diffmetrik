@@ -1,7 +1,9 @@
+use human_format::{Formatter, Scales};
 use libc;
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 use std::iter::FromIterator;
+use std::time::Duration;
 use sysctl::Sysctl;
 
 #[repr(C)]
@@ -86,6 +88,23 @@ pub struct NetworkMetrics {
     pub total_obytes: u64,
 }
 
+impl NetworkMetrics {
+    pub fn diff(&self, old: &NetworkMetrics, dtime: &Duration) -> NetworkMetricRate {
+        let formatter = {
+            let mut f = Formatter::new();
+            f.with_scales(Scales::Binary());
+            f.with_units("B");
+            f
+        };
+        let ibyte_rate = (self.total_ibytes as f64 - old.total_ibytes as f64) / dtime.as_secs_f64();
+        let obyte_rate = (self.total_obytes as f64 - old.total_obytes as f64) / dtime.as_secs_f64();
+        NetworkMetricRate {
+            ibyte_rate: format!("{}/s", formatter.format(ibyte_rate)),
+            obyte_rate: format!("{}/s", formatter.format(obyte_rate)),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Error {
     pub message: String,
@@ -124,4 +143,10 @@ pub fn get_network_metrics() -> Result<NetworkMetrics, Error> {
             message: "error".to_string(),
         })
     }
+}
+
+#[derive(Debug)]
+pub struct NetworkMetricRate {
+    pub ibyte_rate: String,
+    pub obyte_rate: String,
 }

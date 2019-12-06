@@ -11,16 +11,10 @@ pub struct Metrics {
 }
 
 impl Metrics {
-    pub fn diff(&self, old: &Metrics) -> Metrics {
-        dbg!(old.since_unix_epoch);
-        dbg!(self.since_unix_epoch);
-        dbg!(self.since_unix_epoch - old.since_unix_epoch);
-        Metrics {
-            since_unix_epoch: self.since_unix_epoch - old.since_unix_epoch,
-            network: NetworkMetrics {
-                total_ibytes: self.network.total_ibytes - old.network.total_ibytes,
-                total_obytes: self.network.total_obytes - old.network.total_obytes,
-            },
+    pub fn diff(&self, old: &Metrics) -> MetricRate {
+        let dtime = self.since_unix_epoch - old.since_unix_epoch;
+        MetricRate {
+            network: self.network.diff(&old.network, &dtime),
         }
     }
 }
@@ -44,4 +38,9 @@ pub fn get_metrics() -> Result<Metrics, MetricsError> {
         }),
         Err(e) => Err(MetricsError { message: e.message }),
     }
+}
+
+#[derive(Debug)]
+pub struct MetricRate {
+    pub network: network::NetworkMetricRate,
 }
