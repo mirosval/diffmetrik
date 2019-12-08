@@ -1,3 +1,4 @@
+use fs2::FileExt;
 use serde::Deserialize;
 use serde::Serialize;
 use std::env;
@@ -10,6 +11,15 @@ use std::path::PathBuf;
 #[derive(Debug)]
 pub struct StorageError {
     message: String,
+}
+
+impl std::convert::From<std::io::Error> for StorageError {
+    fn from(e: std::io::Error) -> StorageError {
+        eprintln!("{:?}", &e);
+        StorageError {
+            message: "A storage error occurred".to_string(),
+        }
+    }
 }
 
 pub struct Storage {
@@ -31,18 +41,15 @@ impl Storage {
     where
         for<'de> T: Deserialize<'de>,
     {
-        let file = File::open(&self.path);
-        match file {
-            Ok(file) => {
-                let reader = BufReader::new(file);
-                serde_json::from_reader::<BufReader<File>, T>(reader).map_err(|e| StorageError {
-                    message: e.description().to_string(),
-                })
-            }
-            Err(e) => Err(StorageError {
-                message: e.description().to_string(),
-            }),
-        }
+        let file = File::open(&self.path)?;
+        file.lock_shared()?;
+        let mut reader = BufReader::new(&file);
+        let mut buf = String::new();
+        reader.read_to_string(&mut buf)?;
+        file.unlock()?;
+        serde_json::from_str(&buf).map_err(|e| StorageError {
+            message: e.description().to_string(),
+        })
     }
 
     pub fn write<T>(&self, data: &T) -> Result<(), StorageError>
@@ -50,17 +57,10 @@ impl Storage {
         T: Serialize,
     {
         let serialized = serde_json::to_string(&data).unwrap();
-        let f = std::fs::File::create(&self.path);
-        match f {
-            Ok(mut f) => f
-                .write_all(serialized.as_bytes())
-                .map(|_| ())
-                .map_err(|e| StorageError {
-                    message: e.description().to_string(),
-                }),
-            Err(e) => Err(StorageError {
-                message: e.description().to_string(),
-            }),
-        }
+        let mut file = std::fs::File::create(&self.path)?;
+        file.lock_exclusive()?;
+        file.write_all(serialized.as_bytes())?;
+        file.unlock()?;
+        Ok(())
     }
 }
