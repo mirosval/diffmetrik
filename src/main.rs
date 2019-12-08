@@ -4,7 +4,7 @@ mod storage;
 
 fn main() {
     let opt = cli::opt_from_args();
-    let s = storage::Storage::new();
+    let s = storage::Storage::new(opt.debug);
     let old_metrics = s.read().ok();
     let metrics = metrics::get_metrics().ok();
     s.write(&metrics).unwrap();

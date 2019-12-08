@@ -12,23 +12,26 @@ pub struct StorageError {
     message: String,
 }
 
-pub struct Storage;
+pub struct Storage {
+    path: PathBuf,
+}
 
 impl Storage {
-    pub fn new() -> Storage {
-        Storage {}
-    }
-    fn path(&self) -> PathBuf {
+    pub fn new(debug: bool) -> Storage {
         let mut p = env::temp_dir();
         p.push("diffstat.json");
-        p
+        let path = p;
+        if debug {
+            eprintln!("Storing data in: {:?}", &path);
+        }
+        Storage { path }
     }
 
     pub fn read<T>(&self) -> Result<T, StorageError>
     where
         for<'de> T: Deserialize<'de>,
     {
-        let file = File::open(&self.path());
+        let file = File::open(&self.path);
         match file {
             Ok(file) => {
                 let reader = BufReader::new(file);
@@ -47,9 +50,7 @@ impl Storage {
         T: Serialize,
     {
         let serialized = serde_json::to_string(&data).unwrap();
-        let path = self.path();
-        dbg!(&path);
-        let f = std::fs::File::create(path);
+        let f = std::fs::File::create(&self.path);
         match f {
             Ok(mut f) => f
                 .write_all(serialized.as_bytes())

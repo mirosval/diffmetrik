@@ -24,12 +24,16 @@ pub struct MetricsError {
     message: String,
 }
 
-pub fn get_metrics() -> Result<Metrics, MetricsError> {
-    let dur = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .expect("aaa");
-    dbg!(&dur);
+impl std::convert::From<std::time::SystemTimeError> for MetricsError {
+    fn from(_e: std::time::SystemTimeError) -> MetricsError {
+        MetricsError {
+            message: "Given system time is in the future".to_string(),
+        }
+    }
+}
 
+pub fn get_metrics() -> Result<Metrics, MetricsError> {
+    let dur = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?;
     let network_metrics = get_network_metrics();
     match network_metrics {
         Ok(network_metrics) => Ok(Metrics {
