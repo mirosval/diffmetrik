@@ -15,3 +15,4 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 human_format = "1.0.3"
 fs2 = "0.4.3"
+snafu = "0.6.0"
