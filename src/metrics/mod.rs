@@ -33,6 +33,7 @@ impl Metrics {
             .chain(other.metrics.into_iter())
             .collect::<Vec<TimeTaggedMetric>>();
         metrics.sort_unstable_by_key({ |a| a.time });
+        metrics.truncate(2);
         metrics.reverse();
         Metrics { metrics }
     }
@@ -40,8 +41,8 @@ impl Metrics {
     pub fn get_rate(&self) -> Option<MetricRate> {
         let len = self.metrics.len();
         if len > 1 {
-            let m1 = &self.metrics[len - 2];
-            let m2 = &self.metrics[len - 1];
+            let m1 = &self.metrics.first()?;
+            let m2 = &self.metrics.last()?;
             let dtime = m1.time - m2.time;
             let rate = MetricRate {
                 network: m1.network.diff(&m2.network, &dtime),

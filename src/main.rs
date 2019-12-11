@@ -15,14 +15,12 @@ fn main() {
         }
     };
     let metrics = metrics::get_metrics().ok();
-    let metrics = metrics.map(|m| {
-        s.write(&m).expect("aaa");
-        m
-    });
 
     match (old_metrics, metrics) {
         (Some(old), Some(new)) => {
             let metrics = old.merge(new);
+            // dbg!(&metrics);
+            s.write(&metrics).expect("aaa");
             let metric_rate: Option<metrics::MetricRate> = metrics.get_rate();
             match metric_rate {
                 Some(r) => match opt.metric {
@@ -30,11 +28,13 @@ fn main() {
                     cli::Metric::Upload => println!("U: {}", r.network.obyte_rate),
                 },
                 None => {
+                    s.write(&metrics).expect("aaa");
                     println!("Not enough data");
                 }
             }
         }
-        (_, _) => {
+        (_, metrics) => {
+            s.write(&metrics).expect("aaa");
             println!("Not enough data");
         }
     }
