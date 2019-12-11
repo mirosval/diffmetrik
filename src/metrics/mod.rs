@@ -17,13 +17,10 @@ pub struct Metrics {
 }
 
 impl Metrics {
-    pub fn new() -> Metrics {
-        Metrics { metrics: vec![] }
-    }
-
-    pub fn add(&mut self, metric: TimeTaggedMetric) {
-        self.metrics.push(metric);
-        // TODO: Reduce size of metrics
+    pub fn new(metric: TimeTaggedMetric) -> Metrics {
+        Metrics {
+            metrics: vec![metric],
+        }
     }
 
     pub fn merge(self, other: Metrics) -> Metrics {
@@ -33,8 +30,8 @@ impl Metrics {
             .chain(other.metrics.into_iter())
             .collect::<Vec<TimeTaggedMetric>>();
         metrics.sort_unstable_by_key({ |a| a.time });
-        metrics.truncate(2);
         metrics.reverse();
+        metrics.truncate(3);
         Metrics { metrics }
     }
 
@@ -44,6 +41,7 @@ impl Metrics {
             let m1 = &self.metrics.first()?;
             let m2 = &self.metrics.last()?;
             let dtime = m1.time - m2.time;
+            assert!(dtime > std::time::Duration::new(1, 0));
             let rate = MetricRate {
                 network: m1.network.diff(&m2.network, &dtime),
             };
@@ -76,8 +74,7 @@ pub fn get_metrics() -> Result<Metrics, MetricsError> {
                 time: dur,
                 network: network_metrics,
             };
-            let mut metrics = Metrics::new();
-            metrics.add(m);
+            let metrics = Metrics::new(m);
             Ok(metrics)
         }
         Err(e) => Err(MetricsError { message: e.message }),

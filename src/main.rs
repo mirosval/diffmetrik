@@ -4,23 +4,22 @@ mod storage;
 
 fn main() {
     let opt = cli::opt_from_args();
-    let s = storage::Storage::new(opt.debug);
-    let old_metrics: Option<metrics::Metrics> = {
-        match s.read() {
-            Ok(m) => Some(m),
-            Err(_) => {
-                s.reset().unwrap();
-                None
-            }
-        }
-    };
+    let storage = storage::Storage::new(opt.debug);
+    let old_metrics: Option<metrics::Metrics> = storage
+        .read()
+        .map_err(|e| {
+            storage.reset().unwrap();
+            e
+        })
+        .ok();
     let metrics = metrics::get_metrics().ok();
+    let write_error = "Unable to write temp file with the metrics";
 
     match (old_metrics, metrics) {
         (Some(old), Some(new)) => {
             let metrics = old.merge(new);
-            // dbg!(&metrics);
-            s.write(&metrics).expect("aaa");
+            //dbg!(&metrics);
+            storage.write(&metrics).expect(write_error);
             let metric_rate: Option<metrics::MetricRate> = metrics.get_rate();
             match metric_rate {
                 Some(r) => match opt.metric {
@@ -28,13 +27,13 @@ fn main() {
                     cli::Metric::Upload => println!("U: {}", r.network.obyte_rate),
                 },
                 None => {
-                    s.write(&metrics).expect("aaa");
+                    storage.write(&metrics).expect(write_error);
                     println!("Not enough data");
                 }
             }
         }
         (_, metrics) => {
-            s.write(&metrics).expect("aaa");
+            storage.write(&metrics).expect(write_error);
             println!("Not enough data");
         }
     }

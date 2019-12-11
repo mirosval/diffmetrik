@@ -80,7 +80,7 @@ impl Storage {
         let mut buf = String::new();
         reader.read_to_string(&mut buf)?;
         file.unlock()?;
-        dbg!(&buf);
+        // dbg!(&buf);
         serde_json::from_str::<TimeTagged<T>>(&buf)
             .map_err(|e| StorageError::from(e))
             .map(|t| t.payload)
@@ -107,15 +107,12 @@ impl Storage {
         // Get old timestamp
         let timetagged: Result<TimeTagged<T>, serde_json::error::Error> =
             serde_json::from_str(&buf);
+        let sec = std::time::Duration::new(2, 0);
+        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?;
         let should_write = timetagged
             .map(|t| {
-                let sec = std::time::Duration::new(2, 0);
-                let now = std::time::SystemTime::now();
-                let dur: Result<std::time::Duration, std::time::SystemTimeError> =
-                    now.duration_since(std::time::UNIX_EPOCH);
-                let dur: std::time::Duration = dur.unwrap();
-                let res = (dur - t.time) >= sec;
-                dbg!(&res);
+                let res = (now - t.time) >= sec;
+                //dbg!(&res);
                 res
             })
             .unwrap_or(true);
