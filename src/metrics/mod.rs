@@ -5,16 +5,50 @@ use serde::{Deserialize, Serialize};
 mod network;
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct TimeTaggedMetric {
+    time: std::time::Duration,
+    // TODO: Replace NetworkMetric by some trait
+    network: NetworkMetrics,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Metrics {
-    pub since_unix_epoch: std::time::Duration,
-    pub network: NetworkMetrics,
+    metrics: Vec<TimeTaggedMetric>,
 }
 
 impl Metrics {
-    pub fn diff(&self, old: &Metrics) -> MetricRate {
-        let dtime = self.since_unix_epoch - old.since_unix_epoch;
-        MetricRate {
-            network: self.network.diff(&old.network, &dtime),
+    pub fn new() -> Metrics {
+        Metrics { metrics: vec![] }
+    }
+
+    pub fn add(&mut self, metric: TimeTaggedMetric) {
+        self.metrics.push(metric);
+        // TODO: Reduce size of metrics
+    }
+
+    pub fn merge(self, other: Metrics) -> Metrics {
+        let mut metrics = self
+            .metrics
+            .into_iter()
+            .chain(other.metrics.into_iter())
+            .collect::<Vec<TimeTaggedMetric>>();
+        metrics.sort_unstable_by_key({ |a| a.time });
+        metrics.reverse();
+        Metrics { metrics }
+    }
+
+    pub fn get_rate(&self) -> Option<MetricRate> {
+        let len = self.metrics.len();
+        if len > 1 {
+            let m1 = &self.metrics[len - 2];
+            let m2 = &self.metrics[len - 1];
+            let dtime = m1.time - m2.time;
+            let rate = MetricRate {
+                network: m1.network.diff(&m2.network, &dtime),
+            };
+            Some(rate)
+        } else {
+            None
         }
     }
 }
@@ -36,10 +70,15 @@ pub fn get_metrics() -> Result<Metrics, MetricsError> {
     let dur = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?;
     let network_metrics = get_network_metrics();
     match network_metrics {
-        Ok(network_metrics) => Ok(Metrics {
-            since_unix_epoch: dur,
-            network: network_metrics,
-        }),
+        Ok(network_metrics) => {
+            let m = TimeTaggedMetric {
+                time: dur,
+                network: network_metrics,
+            };
+            let mut metrics = Metrics::new();
+            metrics.add(m);
+            Ok(metrics)
+        }
         Err(e) => Err(MetricsError { message: e.message }),
     }
 }

@@ -71,8 +71,8 @@ fn parse_msghdr(data: &[u8], offset: usize) -> (Option<if_msghdr2>, Option<usize
     if msghdr.ifm_type == utype {
         let msghdr2 = Vec::from_iter(data[offset..offset + if_msghdr2_size].iter().cloned());
         let x: if_msghdr2 = unsafe { std::mem::transmute_copy(&msghdr2[0]) };
-        dbg!(&x.ifm_data.ifi_type);
-        dbg!(&x.ifm_data.ifi_obytes);
+        // dbg!(&x.ifm_data.ifi_type);
+        // dbg!(&x.ifm_data.ifi_obytes);
         // dbg!(&x.ifm_data.ifi_ibytes);
         // dbg!(&x.ifm_data.ifi_ipackets);
         // dbg!(&x.ifm_data.ifi_opackets);
@@ -131,8 +131,8 @@ pub fn get_network_metrics() -> Result<NetworkMetrics, Error> {
                 break;
             }
         }
-        dbg!(&total_ibytes);
-        dbg!(&total_obytes);
+        // dbg!(&total_ibytes);
+        // dbg!(&total_obytes);
         let metrics = NetworkMetrics {
             total_ibytes,
             total_obytes,
