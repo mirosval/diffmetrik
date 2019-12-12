@@ -1,8 +1,12 @@
 use crate::metrics::network::get_network_metrics;
 pub use crate::metrics::network::NetworkMetrics;
+use errors::Error;
 use serde::{Deserialize, Serialize};
 
+mod errors;
 mod network;
+
+type Result<T, E = Error> = std::result::Result<T, E>;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TimeTaggedMetric {
@@ -52,33 +56,17 @@ impl Metrics {
     }
 }
 
-#[derive(Debug)]
-pub struct MetricsError {
-    message: String,
-}
-
-impl std::convert::From<std::time::SystemTimeError> for MetricsError {
-    fn from(_e: std::time::SystemTimeError) -> MetricsError {
-        MetricsError {
-            message: "Given system time is in the future".to_string(),
-        }
-    }
-}
-
-pub fn get_metrics() -> Result<Metrics, MetricsError> {
-    let dur = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?;
-    let network_metrics = get_network_metrics();
-    match network_metrics {
-        Ok(network_metrics) => {
-            let m = TimeTaggedMetric {
-                time: dur,
-                network: network_metrics,
-            };
-            let metrics = Metrics::new(m);
-            Ok(metrics)
-        }
-        Err(e) => Err(MetricsError { message: e.message }),
-    }
+pub fn get_metrics() -> Result<Metrics> {
+    let dur: std::time::Duration = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap();
+    let network_metrics = get_network_metrics()?;
+    let m = TimeTaggedMetric {
+        time: dur,
+        network: network_metrics,
+    };
+    let metrics = Metrics::new(m);
+    Ok(metrics)
 }
 
 #[derive(Debug)]

@@ -99,7 +99,7 @@ impl Storage {
         let timetagged: Result<TimeTagged<T>, serde_json::error::Error> =
             serde_json::from_str(&buf);
         let sec = std::time::Duration::new(2, 0);
-        let now = std::time::SystemTime::now()
+        let now: std::time::Duration = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .context(Time {})?;
         let should_write = timetagged
@@ -110,7 +110,7 @@ impl Storage {
             })
             .unwrap_or(true);
         if should_write {
-            dbg!("writing");
+            //dbg!("writing");
             file.seek(std::io::SeekFrom::Start(0))
                 .context(IO { path })?;
             let timetagged = TimeTagged {

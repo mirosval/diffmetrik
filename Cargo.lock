@@ -83,6 +83,7 @@ dependencies = [
 name = "diffstat"
 version = "0.1.0"
 dependencies = [
+ "failure 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "fs2 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "human_format 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.66 (registry+https://github.com/rust-lang/crates.io-index)",

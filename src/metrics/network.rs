@@ -6,6 +6,10 @@ use std::iter::FromIterator;
 use std::time::Duration;
 use sysctl::Sysctl;
 
+use super::errors::Error;
+
+type Result<T, E = Error> = std::result::Result<T, E>;
+
 #[repr(C)]
 struct if_msghdr2 {
     ifm_msglen: u16,     /* to skip over non-understood messages */
@@ -105,15 +109,12 @@ impl NetworkMetrics {
     }
 }
 
-#[derive(Debug)]
-pub struct Error {
-    pub message: String,
-}
-
-pub fn get_network_metrics() -> Result<NetworkMetrics, Error> {
+pub fn get_network_metrics() -> Result<NetworkMetrics> {
     let oid: Vec<i32> = vec![libc::CTL_NET, libc::PF_ROUTE, 0, 0, libc::NET_RT_IFLIST2, 0];
     let ctl = sysctl::Ctl { oid };
-    let vval = ctl.value().expect("unable to parse sysctl value");
+    let vval = ctl
+        .value()
+        .map_err(|e| super::errors::CtlErrorWrapper::new(e))?;
     if let sysctl::CtlValue::Node(nvec) = vval {
         let mut next = Some(0);
         let mut total_ibytes: u64 = 0;
@@ -139,8 +140,8 @@ pub fn get_network_metrics() -> Result<NetworkMetrics, Error> {
         };
         Ok(metrics)
     } else {
-        Err(Error {
-            message: "error".to_string(),
+        Err(Error::GetMetrics {
+            message: "value retrieved from ctl was not a node".to_string(),
         })
     }
 }
