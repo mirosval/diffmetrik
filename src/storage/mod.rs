@@ -43,7 +43,7 @@ pub struct Storage {
 impl Storage {
     pub fn new(debug: bool) -> Storage {
         let mut p = env::temp_dir();
-        p.push("diffstat.json");
+        p.push("diffmetrik.json");
         let path = p;
         if debug {
             eprintln!("Storing data in: {:?}", &path);
