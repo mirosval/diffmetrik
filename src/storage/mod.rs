@@ -107,11 +107,7 @@ impl Storage {
             .duration_since(UNIX_EPOCH)
             .context(Time {})?;
         let should_write = timetagged
-            .map(|t| {
-                let res = (now - t.time) >= self.min_duration;
-                //dbg!(&res);
-                res
-            })
+            .map(|t| (now - t.time) >= self.min_duration)
             .unwrap_or(true);
         if should_write {
             file.seek(std::io::SeekFrom::Start(0))

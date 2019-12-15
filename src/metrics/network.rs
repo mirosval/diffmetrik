@@ -112,9 +112,7 @@ impl NetworkMetrics {
 pub fn get_network_metrics() -> Result<NetworkMetrics> {
     let oid: Vec<i32> = vec![libc::CTL_NET, libc::PF_ROUTE, 0, 0, libc::NET_RT_IFLIST2, 0];
     let ctl = sysctl::Ctl { oid };
-    let vval = ctl
-        .value()
-        .map_err(|e| super::errors::CtlErrorWrapper::new(e))?;
+    let vval = ctl.value().map_err(super::errors::CtlErrorWrapper::new)?;
     if let sysctl::CtlValue::Node(nvec) = vval {
         let mut next = Some(0);
         let mut total_ibytes: u64 = 0;
