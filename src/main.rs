@@ -4,7 +4,7 @@ mod storage;
 
 fn main() {
     let opt = cli::opt_from_args();
-    let storage = storage::Storage::new(opt.debug);
+    let storage = storage::Storage::new(opt.file_name, std::time::Duration::new(2, 0), opt.debug);
     let old_metrics: Option<metrics::Metrics> = storage
         .read()
         .map_err(|e| {

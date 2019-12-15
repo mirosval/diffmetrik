@@ -12,6 +12,9 @@ arg_enum! {
 #[derive(StructOpt, Debug)]
 #[structopt(name = "baisc")]
 pub struct Opt {
+    #[structopt(long, default_value = "diffmetrik.json")]
+    pub file_name: String,
+
     #[structopt(short, long, possible_values = &Metric::variants(), case_insensitive = true)]
     pub metric: Metric,
 
