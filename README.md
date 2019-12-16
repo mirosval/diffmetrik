@@ -9,5 +9,5 @@ __NOTE:__ This project is in early stages, not all functionality is implemented.
 # Install
 
 ```shell
-cargo install https://github.com/mirosval/diffmetrik
+cargo install --git https://github.com/mirosval/diffmetrik
 ```
