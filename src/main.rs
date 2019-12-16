@@ -23,6 +23,7 @@ fn main() {
             let metric_rate: Option<metrics::MetricRate> = metrics.get_rate();
             match metric_rate {
                 Some(r) => match opt.metric {
+                    cli::Metric::Cpu => println!("C: {:.2}", r.cpu.m1),
                     cli::Metric::Download => println!("D: {}", r.network.ibyte_rate),
                     cli::Metric::Upload => println!("U: {}", r.network.obyte_rate),
                 },

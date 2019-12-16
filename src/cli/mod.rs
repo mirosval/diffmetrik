@@ -4,6 +4,7 @@ use structopt::StructOpt;
 arg_enum! {
     #[derive(Debug)]
     pub enum Metric {
+        Cpu,
         Download,
         Upload,
     }

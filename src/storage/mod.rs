@@ -65,6 +65,7 @@ impl Storage {
     pub fn read<T>(&self) -> Result<T>
     where
         for<'de> T: Deserialize<'de>,
+        T: std::fmt::Debug,
     {
         let path = &self.path;
         let file = File::open(path).context(IO { path })?;
@@ -73,7 +74,7 @@ impl Storage {
         let mut buf = String::new();
         reader.read_to_string(&mut buf).context(IO { path })?;
         file.unlock().context(IO { path })?;
-        // dbg!(&buf);
+        //dbg!(&buf);
         serde_json::from_str::<TimeTagged<T>>(&buf)
             .map(|t| t.payload)
             .context(Json { string: buf })
@@ -83,6 +84,7 @@ impl Storage {
     where
         for<'de> T: Deserialize<'de>,
         T: Serialize,
+        T: std::fmt::Debug,
     {
         // Open
         let path = &self.path;
