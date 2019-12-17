@@ -25,3 +25,6 @@ human_format = "1.0.3"
 fs2 = "0.4.3"
 snafu = "0.6.0"
 failure = "0.1.6"
+
+[dev-dependencies]
+cross = "*"
