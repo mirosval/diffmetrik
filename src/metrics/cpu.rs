@@ -1,8 +1,10 @@
-use super::errors::Error;
 use serde::{Deserialize, Serialize};
 use sysctl::Sysctl;
 
-type Result<T, E = Error> = std::result::Result<T, E>;
+pub enum CpuError {
+    GetMetrics { message: String },
+    CtlError,
+}
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct CPUMetrics {
@@ -18,9 +20,9 @@ struct loadavg {
     fscale: i64,
 }
 
-pub fn get_cpu_metrics() -> Result<CPUMetrics> {
-    let ctl = sysctl::Ctl::new("vm.loadavg").map_err(super::errors::CtlErrorWrapper::new)?;
-    let vval = ctl.value().map_err(super::errors::CtlErrorWrapper::new)?;
+pub fn get_cpu_metrics() -> Result<CPUMetrics, CpuError> {
+    let ctl = sysctl::Ctl::new("vm.loadavg").map_err(|_| CpuError::CtlError)?;
+    let vval = ctl.value().map_err(|_| CpuError::CtlError)?;
     if let sysctl::CtlValue::Struct(sval) = vval {
         let x: loadavg = unsafe { std::mem::transmute_copy(&sval[0]) };
         Ok(CPUMetrics {
@@ -29,7 +31,7 @@ pub fn get_cpu_metrics() -> Result<CPUMetrics> {
             m15: x.ldavg[2] as f32 / x.fscale as f32,
         })
     } else {
-        Err(Error::GetMetrics {
+        Err(CpuError::GetMetrics {
             message: "value retrieved from ctl was not a struct".to_string(),
         })
     }

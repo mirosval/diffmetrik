@@ -2,14 +2,15 @@ use crate::metrics::network::get_network_metrics;
 pub use crate::metrics::network::NetworkMetrics;
 use cpu::get_cpu_metrics;
 use cpu::CPUMetrics;
-use errors::Error;
 use serde::{Deserialize, Serialize};
 
 mod cpu;
-mod errors;
 mod network;
 
-type Result<T, E = Error> = std::result::Result<T, E>;
+pub enum MetricError {
+    NetworkError,
+    CpuError,
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TimeTaggedMetric {
@@ -61,12 +62,12 @@ impl Metrics {
     }
 }
 
-pub fn get_metrics() -> Result<Metrics> {
+pub fn get_metrics() -> Result<Metrics, MetricError> {
     let dur: std::time::Duration = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap();
-    let network_metrics = get_network_metrics()?;
-    let cpu_metrics = get_cpu_metrics()?;
+    let network_metrics = get_network_metrics().map_err(|e| MetricError::NetworkError)?;
+    let cpu_metrics = get_cpu_metrics().map_err(|e| MetricError::CpuError)?;
     let m = TimeTaggedMetric {
         time: dur,
         network: network_metrics,
