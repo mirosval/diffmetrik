@@ -30,7 +30,7 @@ pub enum StorageError {
 impl std::fmt::Display for StorageError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let s = match &self {
-            StorageError::IO { source, path: _ } => source.to_string(),
+            StorageError::IO { source, .. } => source.to_string(),
             StorageError::Serialization { source } => source.to_string(),
             StorageError::Time { source } => source.to_string(),
         };
