@@ -1,8 +1,6 @@
 use fs2::FileExt;
 use serde::Deserialize;
 use serde::Serialize;
-use snafu::ResultExt;
-use snafu::Snafu;
 use std;
 use std::env;
 use std::fs::File;
@@ -16,22 +14,21 @@ use std::time::SystemTime;
 use std::time::SystemTimeError;
 use std::time::UNIX_EPOCH;
 
-#[derive(Debug, Snafu)]
-pub enum Error {
+#[derive(Debug)]
+pub enum StorageError {
     IO {
-        source: io::Error,
-        path: PathBuf,
+        source: std::io::Error,
+        path: String,
     },
-    Json {
+    Serialization {
         source: serde_json::Error,
-        string: String,
     },
     Time {
         source: SystemTimeError,
     },
 }
 
-type Result<T, E = Error> = std::result::Result<T, E>;
+type Result<T, E = StorageError> = std::result::Result<T, E>;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct TimeTagged<T> {
@@ -59,7 +56,10 @@ impl Storage {
     pub fn reset(&self) -> Result<()> {
         File::create(&self.path)
             .map(|_| ())
-            .context(IO { path: &self.path })
+            .map_err(|e| StorageError::IO {
+                source: e,
+                path: format!("{:?}", &self.path),
+            })
     }
 
     pub fn read<T>(&self) -> Result<T>
@@ -68,16 +68,33 @@ impl Storage {
         T: std::fmt::Debug,
     {
         let path = &self.path;
-        let file = File::open(path).context(IO { path })?;
-        file.lock_shared().context(IO { path })?;
+        let file = File::open(path).map_err(|e| StorageError::IO {
+            source: e,
+            path: format!("{:?}", path),
+        })?;
+        file.lock_shared().map_err(|e| StorageError::IO {
+            source: e,
+            path: format!("{:?}", path),
+        })?;
+
         let mut reader = BufReader::new(&file);
         let mut buf = String::new();
-        reader.read_to_string(&mut buf).context(IO { path })?;
-        file.unlock().context(IO { path })?;
+        reader
+            .read_to_string(&mut buf)
+            .map_err(|e| StorageError::IO {
+                source: e,
+                path: format!("{:?}", path),
+            })?;
+
+        file.unlock().map_err(|e| StorageError::IO {
+            source: e,
+            path: format!("{:?}", path),
+        })?;
+
         //dbg!(&buf);
         serde_json::from_str::<TimeTagged<T>>(&buf)
             .map(|t| t.payload)
-            .context(Json { string: buf })
+            .map_err(|e| StorageError::Serialization { source: e })
     }
 
     pub fn write<T>(&self, data: &T) -> Result<()>
@@ -93,39 +110,74 @@ impl Storage {
             .read(true)
             .write(true)
             .open(&self.path)
-            .context(IO { path })?;
+            .map_err(|e| StorageError::IO {
+                source: e,
+                path: format!("{:?}", path),
+            })?;
+
         // Lock
-        file.lock_exclusive().context(IO { path })?;
+        file.lock_exclusive().map_err(|e| StorageError::IO {
+            source: e,
+            path: format!("{:?}", path),
+        })?;
         // Read current value
         file.seek(std::io::SeekFrom::Start(0))
-            .context(IO { path })?;
+            .map_err(|e| StorageError::IO {
+                source: e,
+                path: format!("{:?}", path),
+            })?;
+
         let mut reader = BufReader::new(&file);
         let mut buf = String::new();
-        reader.read_to_string(&mut buf).context(IO { path })?;
+        reader
+            .read_to_string(&mut buf)
+            .map_err(|e| StorageError::IO {
+                source: e,
+                path: format!("{:?}", path),
+            })?;
+
         // Get old timestamp
         let timetagged: Result<TimeTagged<T>, serde_json::error::Error> =
             serde_json::from_str(&buf);
         let now: Duration = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .context(Time {})?;
+            .map_err(|e| StorageError::Time { source: e })?;
+
         let should_write = timetagged
             .map(|t| (now - t.time) >= self.min_duration)
             .unwrap_or(true);
         if should_write {
             file.seek(std::io::SeekFrom::Start(0))
-                .context(IO { path })?;
+                .map_err(|e| StorageError::IO {
+                    source: e,
+                    path: format!("{:?}", path),
+                })?;
+
             let timetagged = TimeTagged {
                 time: SystemTime::now()
                     .duration_since(UNIX_EPOCH)
-                    .context(Time {})?,
+                    .map_err(|e| StorageError::Time { source: e })?,
+
                 payload: data,
             };
             let serialized = serde_json::to_string(&timetagged).unwrap();
-            file.set_len(serialized.len() as u64).context(IO { path })?;
-            file.write_all(serialized.as_bytes()).context(IO { path })?;
+            file.set_len(serialized.len() as u64)
+                .map_err(|e| StorageError::IO {
+                    source: e,
+                    path: format!("{:?}", path),
+                })?;
+
+            file.write_all(serialized.as_bytes())
+                .map_err(|e| StorageError::IO {
+                    source: e,
+                    path: format!("{:?}", path),
+                })?;
         }
         // Unlock
-        file.unlock().context(IO { path })?;
+        file.unlock().map_err(|e| StorageError::IO {
+            source: e,
+            path: format!("{:?}", path),
+        })?;
 
         Ok(())
     }
@@ -160,7 +212,7 @@ mod tests {
         );
         match s.reset() {
             Ok(_) => assert!(true, "file reset successfully"),
-            Err(e) => assert!(false, format!("error resetting file: {}", e)),
+            Err(e) => assert!(false, format!("error resetting file: {:?}", e)),
         }
         let metadata = std::fs::metadata(full_path).expect("should get metadata");
         assert!(metadata.is_file(), "should be a file");
@@ -183,7 +235,7 @@ mod tests {
         let res = s.write(&w);
         match res {
             Ok(_) => assert!(true),
-            Err(e) => assert!(false, format!("writing failed with {}", e)),
+            Err(e) => assert!(false, format!("writing failed with {:?}", e)),
         }
         assert!(
             full_path.exists(),
@@ -230,7 +282,7 @@ mod tests {
                 res.test_string == payload,
                 "payload after read was different from payload written"
             ),
-            Err(e) => assert!(false, format!("error reading: {}", e)),
+            Err(e) => assert!(false, format!("error reading: {:?}", e)),
         }
     }
 
