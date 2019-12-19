@@ -1,12 +1,42 @@
 use human_format::{Formatter, Scales};
+#[cfg(target_os = "macos")]
 use libc;
 use serde::{Deserialize, Serialize};
+#[cfg(target_os = "macos")]
 use std::convert::TryInto;
+#[cfg(target_os = "macos")]
 use std::iter::FromIterator;
 use std::time::Duration;
+#[cfg(target_os = "macos")]
 use sysctl::Sysctl;
 
+#[derive(Debug)]
+pub enum NetworkError {
+    #[allow(dead_code)]
+    CtlError,
+    #[allow(dead_code)]
+    GetMetrics(String),
+    IO(String),
+}
+
+impl std::fmt::Display for NetworkError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            NetworkError::IO(e) => write!(f, "{}", &e),
+            NetworkError::CtlError => write!(f, "CtlError"),
+            NetworkError::GetMetrics(e) => write!(f, "{}", &e),
+        }
+    }
+}
+
+impl From<std::io::Error> for NetworkError {
+    fn from(e: std::io::Error) -> NetworkError {
+        NetworkError::IO(e.to_string())
+    }
+}
+
 #[repr(C)]
+#[cfg(target_os = "macos")]
 struct if_msghdr2 {
     ifm_msglen: u16,     /* to skip over non-understood messages */
     ifm_version: u8,     /* future binary compatability */
@@ -26,6 +56,7 @@ struct if_msghdr2 {
  * which may be of interest to management entities.
 */
 #[repr(C)]
+#[cfg(target_os = "macos")]
 struct if_data64 {
     /* generic interface information */
     ifi_type: u8,      /* ethernet, tokenring, etc */
@@ -106,13 +137,6 @@ impl NetworkMetrics {
     }
 }
 
-pub enum NetworkError {
-    IO,
-    CtlError,
-    GetMetrics { message: String },
-    ParseError,
-}
-
 #[cfg(target_os = "macos")]
 pub fn get_network_metrics() -> Result<NetworkMetrics, NetworkError> {
     let oid: Vec<i32> = vec![libc::CTL_NET, libc::PF_ROUTE, 0, 0, libc::NET_RT_IFLIST2, 0];
@@ -143,16 +167,16 @@ pub fn get_network_metrics() -> Result<NetworkMetrics, NetworkError> {
         };
         Ok(metrics)
     } else {
-        Err(NetworkError::GetMetrics {
-            message: "value retrieved from ctl was not a node".to_string(),
-        })
+        Err(NetworkError::GetMetrics(
+            "value retrieved from ctl was not a node".to_string(),
+        ))
     }
 }
 
 #[cfg(target_os = "linux")]
 pub fn get_network_metrics() -> Result<NetworkMetrics, NetworkError> {
     let path = "/proc/net/dev";
-    let proc = std::fs::read_to_string(path).map_err(|e| NetworkError::IO)?;
+    let proc = std::fs::read_to_string(path)?;
     parse_linux_proc_net_dev(&proc)
 }
 
@@ -184,8 +208,8 @@ struct LinuxProcNetDevLine {
 }
 
 impl LinuxProcNetDevLine {
+    #[cfg(target_os = "linux")]
     fn new(line: &str) -> Result<LinuxProcNetDevLine, NetworkError> {
-        let msg = format!("failed to parse {}", &line);
         let line = line.split_whitespace().collect::<Vec<&str>>();
         let iface = line[0].to_string();
         let line: Vec<u64> = line
@@ -216,6 +240,7 @@ impl LinuxProcNetDevLine {
     }
 }
 
+#[cfg(target_os = "linux")]
 fn parse_linux_proc_net_dev(s: &str) -> Result<NetworkMetrics, NetworkError> {
     let lines = s.lines().skip(1).collect::<Vec<&str>>();
     let lines = lines
@@ -235,13 +260,15 @@ fn parse_linux_proc_net_dev(s: &str) -> Result<NetworkMetrics, NetworkError> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
+    #[cfg(target_os = "linux")]
     static LINUX_PROC_NET_DEV: &str = include_str!("test/linux_proc_net_dev.txt");
 
     #[test]
+    #[cfg(target_os = "linux")]
     fn test_linux() {
-        let m = parse_linux_proc_net_dev(LINUX_PROC_NET_DEV).ok().unwrap();
+        let m = super::parse_linux_proc_net_dev(LINUX_PROC_NET_DEV)
+            .ok()
+            .unwrap();
         assert_eq!(m.total_ibytes, 5610486);
         assert_eq!(m.total_obytes, 81092);
     }

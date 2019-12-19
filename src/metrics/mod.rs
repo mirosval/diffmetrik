@@ -7,9 +7,31 @@ use serde::{Deserialize, Serialize};
 mod cpu;
 mod network;
 
+#[derive(Debug)]
 pub enum MetricError {
-    NetworkError,
-    CpuError,
+    NetworkError(network::NetworkError),
+    CpuError(cpu::CpuError),
+}
+
+impl std::fmt::Display for MetricError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            MetricError::NetworkError(e) => e.fmt(f),
+            MetricError::CpuError(e) => e.fmt(f),
+        }
+    }
+}
+
+impl From<cpu::CpuError> for MetricError {
+    fn from(e: cpu::CpuError) -> MetricError {
+        MetricError::CpuError(e)
+    }
+}
+
+impl From<network::NetworkError> for MetricError {
+    fn from(e: network::NetworkError) -> MetricError {
+        MetricError::NetworkError(e)
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -66,8 +88,8 @@ pub fn get_metrics() -> Result<Metrics, MetricError> {
     let dur: std::time::Duration = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap();
-    let network_metrics = get_network_metrics().map_err(|e| MetricError::NetworkError)?;
-    let cpu_metrics = get_cpu_metrics().map_err(|e| MetricError::CpuError)?;
+    let network_metrics = get_network_metrics()?;
+    let cpu_metrics = get_cpu_metrics()?;
     let m = TimeTaggedMetric {
         time: dur,
         network: network_metrics,

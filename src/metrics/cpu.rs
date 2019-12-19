@@ -1,9 +1,19 @@
 use serde::{Deserialize, Serialize};
 use sysctl::Sysctl;
 
+#[derive(Debug)]
 pub enum CpuError {
-    GetMetrics { message: String },
+    GetMetrics(String),
     CtlError,
+}
+
+impl std::fmt::Display for CpuError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            CpuError::CtlError => write!(f, "CtlError"),
+            CpuError::GetMetrics(e) => write!(f, "{}", &e),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -31,8 +41,8 @@ pub fn get_cpu_metrics() -> Result<CPUMetrics, CpuError> {
             m15: x.ldavg[2] as f32 / x.fscale as f32,
         })
     } else {
-        Err(CpuError::GetMetrics {
-            message: "value retrieved from ctl was not a struct".to_string(),
-        })
+        Err(CpuError::GetMetrics(
+            "value retrieved from ctl was not a struct".to_string(),
+        ))
     }
 }

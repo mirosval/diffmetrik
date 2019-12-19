@@ -4,7 +4,6 @@ use serde::Serialize;
 use std;
 use std::env;
 use std::fs::File;
-use std::io;
 use std::io::prelude::*;
 use std::io::BufReader;
 use std::io::Read;
@@ -26,6 +25,23 @@ pub enum StorageError {
     Time {
         source: SystemTimeError,
     },
+}
+
+impl std::fmt::Display for StorageError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let s = match &self {
+            StorageError::IO { source, path: _ } => source.to_string(),
+            StorageError::Serialization { source } => source.to_string(),
+            StorageError::Time { source } => source.to_string(),
+        };
+        write!(f, "Storage Error: {}", s)
+    }
+}
+
+impl From<std::time::SystemTimeError> for StorageError {
+    fn from(e: std::time::SystemTimeError) -> StorageError {
+        StorageError::Time { source: e }
+    }
 }
 
 type Result<T, E = StorageError> = std::result::Result<T, E>;
@@ -139,9 +155,7 @@ impl Storage {
         // Get old timestamp
         let timetagged: Result<TimeTagged<T>, serde_json::error::Error> =
             serde_json::from_str(&buf);
-        let now: Duration = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map_err(|e| StorageError::Time { source: e })?;
+        let now: Duration = SystemTime::now().duration_since(UNIX_EPOCH)?;
 
         let should_write = timetagged
             .map(|t| (now - t.time) >= self.min_duration)
@@ -154,10 +168,7 @@ impl Storage {
                 })?;
 
             let timetagged = TimeTagged {
-                time: SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .map_err(|e| StorageError::Time { source: e })?,
-
+                time: SystemTime::now().duration_since(UNIX_EPOCH)?,
                 payload: data,
             };
             let serialized = serde_json::to_string(&timetagged).unwrap();
@@ -212,7 +223,7 @@ mod tests {
         );
         match s.reset() {
             Ok(_) => assert!(true, "file reset successfully"),
-            Err(e) => assert!(false, format!("error resetting file: {:?}", e)),
+            Err(e) => assert!(false, format!("error resetting file: {}", e)),
         }
         let metadata = std::fs::metadata(full_path).expect("should get metadata");
         assert!(metadata.is_file(), "should be a file");
@@ -235,7 +246,7 @@ mod tests {
         let res = s.write(&w);
         match res {
             Ok(_) => assert!(true),
-            Err(e) => assert!(false, format!("writing failed with {:?}", e)),
+            Err(e) => assert!(false, format!("writing failed with {}", e)),
         }
         assert!(
             full_path.exists(),
@@ -282,7 +293,7 @@ mod tests {
                 res.test_string == payload,
                 "payload after read was different from payload written"
             ),
-            Err(e) => assert!(false, format!("error reading: {:?}", e)),
+            Err(e) => assert!(false, format!("error reading: {}", e)),
         }
     }
 
