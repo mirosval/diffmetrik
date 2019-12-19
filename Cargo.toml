@@ -24,4 +24,4 @@ human_format = "1.0.3"
 fs2 = "0.4.3"
 
 [dev-dependencies]
-cross = "*"
+cross = "0.1.16"
