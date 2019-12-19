@@ -5,7 +5,10 @@ name: Build
 jobs:
   check:
     name: Check
-    runs-on: macos-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest]
     steps:
       - name: Checkout sources
         uses: actions/checkout@v1
@@ -24,7 +27,10 @@ jobs:
 
   test:
     name: Test Suite
-    runs-on: macos-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest]
     steps:
       - name: Checkout sources
         uses: actions/checkout@v1
@@ -43,7 +49,10 @@ jobs:
 
   lints:
     name: Lints
-    runs-on: macos-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest]
     steps:
       - name: Checkout sources
         uses: actions/checkout@v1
