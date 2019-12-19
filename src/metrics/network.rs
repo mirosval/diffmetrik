@@ -195,7 +195,7 @@ impl LinuxProcNetDevLine {
             .flatten()
             .collect::<Vec<u64>>();
         Ok(LinuxProcNetDevLine {
-            iface: iface,
+            iface,
             rx_bytes: line[0],
             rx_packets: line[1],
             rx_errors: line[2],
