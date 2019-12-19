@@ -1,6 +1,6 @@
 [package]
 name = "diffmetrik"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Miroslav Zoricak <miroslav.zoricak@gmail.com>"]
 edition = "2018"
 

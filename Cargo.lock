@@ -89,7 +89,7 @@ dependencies = [
 
 [[package]]
 name = "diffmetrik"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cross 0.1.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "fs2 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
