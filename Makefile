@@ -1,5 +1,9 @@
-test:
-	cargo test
+develop:
+	cargo watch -c -x 'check' -x 'clippy' -x 'test'
 
-test-linux:
-	cross test --target x86_64-unknown-linux-gnu
+develop-linux:
+	docker build -f tests/Dockerfile -t diffmetrik-test .
+	docker run -it -v $(shell pwd):/app diffmetrik-test 
+
+show-outdated:
+	cargo outdated
