@@ -3,7 +3,7 @@ use super::CPUMetrics;
 
 #[cfg(target_os = "linux")]
 pub fn get_cpu_metrics() -> Result<CPUMetrics, CpuError> {
-    let text = std::fs::read_to_string("/proc/loadavg").map_err(|e| CpuError::IO(e))?;
+    let text = std::fs::read_to_string("/proc/loadavg").map_err(CpuError::IO)?;
     let parsed = text
         .split(' ')
         .take(3)

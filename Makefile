@@ -1,5 +1,5 @@
 develop:
-	cargo watch -c -x 'check' -x 'clippy' -x 'test'
+	cargo watch -c -x 'check' -x 'clippy -- -D warnings' -x 'test'
 
 develop-linux:
 	docker build -f tests/Dockerfile -t diffmetrik-test .
