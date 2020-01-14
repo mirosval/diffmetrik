@@ -1,3 +1,8 @@
+## 0.3.0
+
+* Added Linux cpu support
+* Make output string constant length to prevent flicker on tmux status line
+
 ## 0.2.0
 
 * Added Linux support for Network
