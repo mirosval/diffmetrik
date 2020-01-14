@@ -114,6 +114,21 @@ fn parse_msghdr(data: &[u8], offset: usize) -> (Option<if_msghdr2>, Option<usize
     }
 }
 
+fn make_formatter() -> Formatter {
+    let suffixes = vec![" ", "k", "M", "G", "T"];
+    let mut scales = Scales::new();
+    scales.with_base(1024).with_suffixes(suffixes);
+    let mut f = Formatter::new();
+    f.with_scales(scales);
+    f.with_units("B");
+    f.with_decimals(2);
+    f
+}
+
+fn format_bytes(formatter: &Formatter, bytes: f64) -> String {
+    format!("{:>10}/s", formatter.format(bytes))
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct NetworkMetrics {
     pub total_ibytes: u64,
@@ -122,17 +137,12 @@ pub struct NetworkMetrics {
 
 impl NetworkMetrics {
     pub fn diff(&self, old: &NetworkMetrics, dtime: &Duration) -> NetworkMetricRate {
-        let formatter = {
-            let mut f = Formatter::new();
-            f.with_scales(Scales::Binary());
-            f.with_units("B");
-            f
-        };
+        let formatter = make_formatter();
         let ibyte_rate = (self.total_ibytes as f64 - old.total_ibytes as f64) / dtime.as_secs_f64();
         let obyte_rate = (self.total_obytes as f64 - old.total_obytes as f64) / dtime.as_secs_f64();
         NetworkMetricRate {
-            ibyte_rate: format!("{}/s", formatter.format(ibyte_rate)),
-            obyte_rate: format!("{}/s", formatter.format(obyte_rate)),
+            ibyte_rate: format_bytes(&formatter, ibyte_rate),
+            obyte_rate: format_bytes(&formatter, obyte_rate),
         }
     }
 }
@@ -260,6 +270,8 @@ fn parse_linux_proc_net_dev(s: &str) -> Result<NetworkMetrics, NetworkError> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[cfg(target_os = "linux")]
     static LINUX_PROC_NET_DEV: &str = include_str!("test/linux_proc_net_dev.txt");
 
@@ -271,5 +283,17 @@ mod tests {
             .unwrap();
         assert_eq!(m.total_ibytes, 5610486);
         assert_eq!(m.total_obytes, 81092);
+    }
+
+    #[test]
+    fn test_formatter() {
+        let f = make_formatter();
+        assert_eq!(format_bytes(&f, 1.0), "   1.00  B/s");
+        assert_eq!(format_bytes(&f, 10.0), "  10.00  B/s");
+        assert_eq!(format_bytes(&f, 100.0), " 100.00  B/s");
+        assert_eq!(format_bytes(&f, 1000.0), "1000.00  B/s");
+        assert_eq!(format_bytes(&f, 10_000.0), "   9.77 kB/s");
+        assert_eq!(format_bytes(&f, 1024.0 * 1024.0), "   1.00 MB/s");
+        assert_eq!(format_bytes(&f, 1024.0 * 1024.0 * 1024.0), "   1.00 GB/s");
     }
 }

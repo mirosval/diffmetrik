@@ -7,3 +7,6 @@ develop-linux:
 
 show-outdated:
 	cargo outdated
+
+install:
+	cargo install --path . --force
