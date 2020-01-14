@@ -6,7 +6,7 @@ The intended use inside tmux status line.
 
 __NOTE:__ This project is in early stages, not all functionality is implemented. Contributions are welcome.
 
-# Install
+## Install
 
 ```shell
 cargo install --git https://github.com/mirosval/diffmetrik
