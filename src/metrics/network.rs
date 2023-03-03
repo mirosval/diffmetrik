@@ -1,6 +1,5 @@
 use human_format::{Formatter, Scales};
 #[cfg(target_os = "macos")]
-use libc;
 use serde::{Deserialize, Serialize};
 #[cfg(target_os = "macos")]
 use std::convert::TryInto;
@@ -150,7 +149,7 @@ impl NetworkMetrics {
 #[cfg(target_os = "macos")]
 pub fn get_network_metrics() -> Result<NetworkMetrics, NetworkError> {
     let oid: Vec<i32> = vec![libc::CTL_NET, libc::PF_ROUTE, 0, 0, libc::NET_RT_IFLIST2, 0];
-    let ctl = sysctl::Ctl { oid };
+    let ctl = sysctl::Ctl::Oid(oid);
     let vval = ctl.value().map_err(|_| NetworkError::CtlError)?;
     if let sysctl::CtlValue::Node(nvec) = vval {
         let mut next = Some(0);
@@ -198,23 +197,23 @@ pub struct NetworkMetricRate {
 
 #[derive(Debug)]
 struct LinuxProcNetDevLine {
-    iface: String,
-    rx_bytes: u64,
-    rx_packets: u64,
-    rx_errors: u64,
-    rx_dropped_missed: u64,
-    rx_fifo_errors: u64,
-    rx_length_over_ctc_frame_errors: u64,
-    rx_compressed: u64,
-    multicast: u64,
-    tx_bytes: u64,
-    tx_packets: u64,
-    tx_errors: u64,
-    tx_dropped: u64,
-    tx_fifo_errors: u64,
-    collisions: u64,
-    tx_carrier_aborted_window_heartbeat_errors: u64,
-    tx_compressed: u64,
+    // iface: String,
+    // rx_bytes: u64,
+    // rx_packets: u64,
+    // rx_errors: u64,
+    // rx_dropped_missed: u64,
+    // rx_fifo_errors: u64,
+    // rx_length_over_ctc_frame_errors: u64,
+    // rx_compressed: u64,
+    // multicast: u64,
+    // tx_bytes: u64,
+    // tx_packets: u64,
+    // tx_errors: u64,
+    // tx_dropped: u64,
+    // tx_fifo_errors: u64,
+    // collisions: u64,
+    // tx_carrier_aborted_window_heartbeat_errors: u64,
+    // tx_compressed: u64,
 }
 
 impl LinuxProcNetDevLine {

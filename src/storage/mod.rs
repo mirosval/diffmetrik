@@ -1,7 +1,6 @@
 use fs2::FileExt;
 use serde::Deserialize;
 use serde::Serialize;
-use std;
 use std::env;
 use std::fs::File;
 use std::io::prelude::*;
@@ -137,11 +136,10 @@ impl Storage {
             path: format!("{:?}", path),
         })?;
         // Read current value
-        file.seek(std::io::SeekFrom::Start(0))
-            .map_err(|e| StorageError::IO {
-                source: e,
-                path: format!("{:?}", path),
-            })?;
+        file.rewind().map_err(|e| StorageError::IO {
+            source: e,
+            path: format!("{:?}", path),
+        })?;
 
         let mut reader = BufReader::new(&file);
         let mut buf = String::new();
@@ -161,11 +159,10 @@ impl Storage {
             .map(|t| (now - t.time) >= self.min_duration)
             .unwrap_or(true);
         if should_write {
-            file.seek(std::io::SeekFrom::Start(0))
-                .map_err(|e| StorageError::IO {
-                    source: e,
-                    path: format!("{:?}", path),
-                })?;
+            file.rewind().map_err(|e| StorageError::IO {
+                source: e,
+                path: format!("{:?}", path),
+            })?;
 
             let timetagged = TimeTagged {
                 time: SystemTime::now().duration_since(UNIX_EPOCH)?,
@@ -223,7 +220,7 @@ mod tests {
         );
         match s.reset() {
             Ok(_) => assert!(true, "file reset successfully"),
-            Err(e) => assert!(false, format!("error resetting file: {}", e)),
+            Err(e) => assert!(false, "error resetting file: {}", e),
         }
         let metadata = std::fs::metadata(full_path).expect("should get metadata");
         assert!(metadata.is_file(), "should be a file");
@@ -246,7 +243,7 @@ mod tests {
         let res = s.write(&w);
         match res {
             Ok(_) => assert!(true),
-            Err(e) => assert!(false, format!("writing failed with {}", e)),
+            Err(e) => assert!(false, "writing failed with {}", e),
         }
         assert!(
             full_path.exists(),
@@ -293,7 +290,7 @@ mod tests {
                 res.test_string == payload,
                 "payload after read was different from payload written"
             ),
-            Err(e) => assert!(false, format!("error reading: {}", e)),
+            Err(e) => assert!(false, "error reading: {}", e),
         }
     }
 

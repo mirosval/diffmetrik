@@ -60,7 +60,7 @@ impl Metrics {
             .into_iter()
             .chain(other.metrics.into_iter())
             .collect::<Vec<TimeTaggedMetric>>();
-        metrics.sort_unstable_by_key({ |a| a.time });
+        metrics.sort_unstable_by_key(|a| a.time);
         metrics.reverse();
         metrics.truncate(3);
         Metrics { metrics }
